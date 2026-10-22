@@ -1,0 +1,72 @@
+name: Erro ou sugestão / Bug or suggestion
+description: Relate um problema ou proponha uma melhoria para o H-GEO. Português e inglês são bem-vindos.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por ajudar a melhorar o H-GEO! / Thank you for improving H-GEO!
+        Antes de enviar, procure por relatos semelhantes nas Issues. Os relatos são públicos: não inclua senhas, tokens ou dados privados.
+        Please search existing issues first. Reports are public: do not include passwords, tokens or private data.
+  - type: dropdown
+    id: type
+    attributes:
+      label: Tipo / Type
+      options:
+        - Erro / Bug
+        - Sugestão de melhoria / Feature request
+        - Dúvida de uso / Usage question
+    validations:
+      required: true
+  - type: input
+    id: hgeo_version
+    attributes:
+      label: Versão do H-GEO / H-GEO version
+      placeholder: 'Ex.: 1.1.2'
+    validations:
+      required: true
+  - type: input
+    id: qgis_version
+    attributes:
+      label: Versão do QGIS e sistema operacional / QGIS version and operating system
+      placeholder: 'Ex.: QGIS 3.40.15, Windows 11'
+    validations:
+      required: true
+  - type: dropdown
+    id: module
+    attributes:
+      label: Módulo / Module
+      options:
+        - Copiloto Operacional / Operational Copilot
+        - Laboratório Analítico / Analytical Laboratory
+        - MDE, drenagem e bacias / DEM, drainage and watersheds
+        - Relatório Comparativo / Comparative Report
+        - Instalação / Installation
+        - Site e documentação / Website and documentation
+        - Outro / Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Descrição / Description
+      description: Explique o problema, a sugestão ou sua dúvida. / Describe the problem, suggestion or question.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passos para reproduzir / Steps to reproduce
+      description: Para erros, informe as ações e parâmetros usados. / For bugs, include the actions and parameters used.
+      placeholder: |
+        1.
+        2.
+        3.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Resultado esperado e resultado observado / Expected and actual result
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Mensagens, prints e informações adicionais / Messages, screenshots and additional details
+      description: Anexe apenas informações que possam ser compartilhadas publicamente. / Only attach information that can be shared publicly.
