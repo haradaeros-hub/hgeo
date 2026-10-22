@@ -3,7 +3,7 @@
 Plugin experimental de geoprocessamento, hidrologia e análise multiespectral para QGIS.
 
 - [Site e documentação](https://haradaeros-hub.github.io/hgeo/)
-- [Download do plugin 1.1.0](HGEO_1.1.0.zip)
+- [Download do plugin 1.1.1](HGEO_1.1.1.zip)
 - [Instalação e limites da validação](hgeo/LEIA-ME.md)
 
 No QGIS: **Complementos → Gerenciar e Instalar Complementos → Instalar a partir do ZIP**. Selecione o ZIP e, depois, abra **Complementos → H-GEO**.
@@ -12,7 +12,7 @@ Validação inicial com QGIS 3.40.15. Distribuição experimental; ainda não su
 
 ## Organização
 
-`hgeo/`: código do plugin. `index.html`: documentação pública. `HGEO_1.1.0.zip`: pacote instalável.
+`hgeo/`: código do plugin. `index.html`: documentação pública. `HGEO_1.1.1.zip`: pacote instalável.
 
 ## Publicação do site
 

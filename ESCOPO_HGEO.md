@@ -66,7 +66,7 @@ Outras funções:
 
 ## 5. Integração como plugin
 
-Menu e botão no QGIS, abertura sob demanda, acesso direto aos perfis e relatório, reaproveitamento da janela do mesmo perfil e seleção persistente da logo.
+Menu e botão no QGIS, abertura sob demanda, acesso direto aos perfis e relatório, reaproveitamento da janela do mesmo perfil.
 
 ## Observações encontradas na leitura do código
 
