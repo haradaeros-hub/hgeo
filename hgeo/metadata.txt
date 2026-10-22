@@ -1,13 +1,24 @@
 [general]
 name=H-GEO
-description=Copiloto de geoprocessamento, hidrologia e análise multiespectral
-about=Conversão do HGEO 1.0 para plugin, preservando os módulos operacionais, analista e relatórios comparativos.
-version=1.1.1
+description=Geoprocessamento guiado, sensoriamento remoto e modelagem hidrológica no QGIS.
+about=H-GEO reúne ferramentas e orientação passo a passo para explorar, preparar e analisar dados geográficos.
+ .
+ Copiloto Operacional: ações de geoprocessamento e guias para o trabalho no QGIS.
+ Laboratório Analítico: índices espectrais, composições RGB e análise do relevo.
+ Hidrologia: preparação do MDE, geração de drenagem e delimitação de bacias por exutório.
+ Análise temporal: comparação de imagens Sentinel-2, mapas de diferenças, estatísticas e relatórios em PDF.
+ .
+ Desenvolvido por Eros Harada.
+ Documentação e download: https://haradaeros-hub.github.io/hgeo/
+ Código-fonte: https://github.com/haradaeros-hub/hgeo
+version=1.1.2
 qgisMinimumVersion=3.40
 qgisMaximumVersion=3.99
-author=Equipe H-GEO
+author=Eros Harada
 email=
-repository=
+homepage=https://haradaeros-hub.github.io/hgeo/
+repository=https://github.com/haradaeros-hub/hgeo
+tracker=https://github.com/haradaeros-hub/hgeo/issues
 category=Raster
 experimental=True
 hasProcessingProvider=False

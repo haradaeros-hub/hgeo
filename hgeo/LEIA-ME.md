@@ -1,10 +1,10 @@
-# H-GEO 1.1.1 — plugin experimental para QGIS
+# H-GEO 1.1.2 — plugin experimental para QGIS
 
 ## Instalação
 
 1. Abra QGIS 3.40.
 2. Acesse **Complementos → Gerenciar e Instalar Complementos → Instalar a partir do ZIP**.
-3. Selecione `HGEO_1.1.1.zip` e clique em **Instalar complemento**.
+3. Selecione `HGEO_1.1.2.zip` e clique em **Instalar complemento**.
 4. Use **Complementos → H-GEO → Abrir H-GEO**, ou o botão na barra de ferramentas.
 
 Feche a versão executada como script antes de usar o plugin, para evitar janelas duplicadas.
