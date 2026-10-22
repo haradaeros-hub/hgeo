@@ -2,7 +2,7 @@
 name=H-GEO
 description=Copiloto de geoprocessamento, hidrologia e análise multiespectral
 about=Conversão do HGEO 1.0 para plugin, preservando os módulos operacionais, analista e relatórios comparativos.
-version=1.1.0
+version=1.1.1
 qgisMinimumVersion=3.40
 qgisMaximumVersion=3.99
 author=Equipe H-GEO

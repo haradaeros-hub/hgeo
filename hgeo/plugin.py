@@ -1,6 +1,6 @@
-"""QGIS lifecycle; the existing tools are imported only on first use."""
+
 from qgis.PyQt.QtWidgets import QAction, QDialog
-from qgis.PyQt.QtCore import QSettings, QThread
+from qgis.PyQt.QtCore import QThread
 from qgis.core import QgsApplication, QgsMessageLog, Qgis
 
 
@@ -19,7 +19,6 @@ class HGeoPlugin:
             ('Modo Operacional', lambda: self.open_mode('operacional')),
             ('Modo Analista', lambda: self.open_mode('analista')),
             ('Relatório comparativo', self.report),
-            ('Configurar logo', self.configure_logo),
         ):
             action = QAction(title, self.iface.mainWindow())
             action.triggered.connect(lambda checked=False, fn=callback: self._invoke(fn))
@@ -63,14 +62,6 @@ class HGeoPlugin:
     def report(self):
         self._show(self._load().abrir_relatorio_comparativo_hgeo(self.iface.mainWindow()))
 
-    def configure_logo(self):
-        from qgis.PyQt.QtWidgets import QFileDialog
-        path, _ = QFileDialog.getOpenFileName(self.iface.mainWindow(), 'Logo do H-GEO', '', 'Imagens (*.png *.jpg *.jpeg)')
-        if path:
-            QSettings().setValue('hgeo/logo', path)
-            if self.runtime is not None:
-                self.runtime.CAMINHO_LOGO = path
-
     def unload(self):
         for action in self.actions:
             self.iface.removePluginMenu('&H-GEO', action)
@@ -79,8 +70,8 @@ class HGeoPlugin:
         self.actions.clear()
         if self.runtime is None:
             return
-        # Hide owned windows, but retain any live worker's owner until it finishes.
-        # Do not terminate threads or delete a widget underneath a running task.
+        
+        
         rt = self.runtime
         roots = list(self.windows)
         roots.extend(rt._hgeo_previous_chats)

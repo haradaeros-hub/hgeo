@@ -17,25 +17,14 @@ import urllib.parse
 import json
 from datetime import date, timedelta, datetime
 
-# ==========================================
-# DEFINA O CAMINHO DA LOGO AQUI:
-# ==========================================
-from qgis.PyQt.QtCore import QSettings
-CAMINHO_LOGO = QSettings().value("hgeo/logo", "", type=str)
 
-# ==========================================
-# CHAVE DE API DO OPENTOPOGRAPHY (OPCIONAL):
-# Usada apenas como método alternativo de download do MDE, caso o
-# Copernicus DEM via AWS falhe. Gratuita, cadastro em:
-# https://portal.opentopography.org/myopentopo
-# ==========================================
 OPENTOPOGRAPHY_API_KEY = ""
 
-# PALETA DE CORES CORPORATIVA
-COR_PRIMARIA = "#1E507E"       # Azul Corporativo
-COR_PRIMARIA_HOVER = "#153A5B" # Azul Escuro (Hover)
-COR_DESTAQUE = "#69B04C"       # Verde Claro (Atenção/Sucesso)
-COR_USUARIO = "#334155"        # Cinza Chumbo Escuro (Texto)
+
+COR_PRIMARIA = "#1E507E"       
+COR_PRIMARIA_HOVER = "#153A5B" 
+COR_DESTAQUE = "#69B04C"       
+COR_USUARIO = "#334155"        
 
 _assistente_chat = None
 _hgeo_previous_chats = []
@@ -43,9 +32,7 @@ _assistente_welcome = None
 
 _modo_atual = "operacional"
 
-# ==========================================
-# FUNÇÃO AUXILIAR DE ESTÉTICA
-# ==========================================
+
 def aplicar_sombra(widget, blur_radius=15, alpha=40, y_offset=3):
     shadow = QGraphicsDropShadowEffect()
     shadow.setBlurRadius(blur_radius)
@@ -54,18 +41,10 @@ def aplicar_sombra(widget, blur_radius=15, alpha=40, y_offset=3):
     shadow.setColor(QColor(0, 0, 0, alpha))
     widget.setGraphicsEffect(shadow)
 
-# ==========================================
-# DOWNLOAD/REPROJEÇÃO AUTOMÁTICA DE MDE (Copernicus DEM / OpenTopography)
-#
-# As funções "_arquivo" abaixo fazem apenas trabalho puro de GDAL/rede e
-# devolvem um caminho de arquivo (string) — nunca criam QgsRasterLayer nem
-# tocam o projeto QGIS, pois rodam dentro de uma QThread em segundo plano
-# (ver TarefaGeoWorker). A construção do QgsRasterLayer e o addMapLayer
-# sempre acontecem depois, de volta na thread principal.
-# ==========================================
+
 def obter_bbox_wgs84_do_canvas():
-    """Extensão atual do mapa (canvas), reprojetada para WGS84 (EPSG:4326).
-    Deve ser chamada na thread principal (usa o mapCanvas da interface)."""
+
+
     canvas = qgis.utils.iface.mapCanvas()
     extensao = canvas.extent()
     crs_atual = canvas.mapSettings().destinationCrs()
@@ -76,8 +55,8 @@ def obter_bbox_wgs84_do_canvas():
     return extensao.xMinimum(), extensao.yMinimum(), extensao.xMaximum(), extensao.yMaximum()
 
 def centro_wgs84_da_camada(layer):
-    """Centro (lon, lat) da extensão de uma camada, em WGS84. Também deve ser
-    chamada na thread principal (usa QgsCoordinateTransform/QgsProject)."""
+
+
     crs_wgs84 = QgsCoordinateReferenceSystem("EPSG:4326")
     extensao = layer.extent()
     if layer.crs() != crs_wgs84:
@@ -87,7 +66,7 @@ def centro_wgs84_da_camada(layer):
     return centro.x(), centro.y()
 
 def epsg_sirgas_utm_por_longitude(longitude):
-    """SIRGAS 2000 / UTM 21S (EPSG:31981) a oeste de -54°, 22S (EPSG:31982) a leste."""
+
     return "EPSG:31982" if longitude >= -54.0 else "EPSG:31981"
 
 def _caminho_temp_unico(prefixo, sufixo=".tif"):
@@ -101,11 +80,8 @@ def _nome_tile_copernicus(lat_int, lon_int):
     return f"Copernicus_DSM_COG_10_{ns}{abs(lat_int):02d}_00_{ew}{abs(lon_int):03d}_00_DEM"
 
 def _baixar_mde_copernicus_aws_arquivo(bbox_wgs84, nome_camada="MDE_Copernicus_AutoBaixado"):
-    """Monta um mosaico dos blocos de 1x1 grau do Copernicus DEM GLO-30 (bucket
-    público da AWS, sem necessidade de API key) e recorta pela extensão informada.
-    Usa diretamente as bindings Python do GDAL (osgeo.gdal) em vez do algoritmo
-    'gdal:buildvirtualraster' do Processing, pois este último valida o parâmetro
-    INPUT como lista de camadas e rejeita strings /vsicurl/ em algumas builds."""
+
+
     from osgeo import gdal
     gdal.UseExceptions()
 
@@ -138,8 +114,8 @@ def _baixar_mde_copernicus_aws_arquivo(bbox_wgs84, nome_camada="MDE_Copernicus_A
     except Exception as e:
         raise Exception(f"Falha ao recortar o MDE baixado ({type(e).__name__}): {str(e)}")
     finally:
-        # Limpeza de um arquivo /vsimem/ (memória, não disco) — nunca deve
-        # mascarar um gdal.Translate que já tinha dado certo caso falhe.
+        
+        
         vrt_ds = None
         try:
             gdal.Unlink(caminho_vrt)
@@ -152,9 +128,8 @@ def _baixar_mde_copernicus_aws_arquivo(bbox_wgs84, nome_camada="MDE_Copernicus_A
     return caminho_saida
 
 def _baixar_mde_opentopography_arquivo(bbox_wgs84, nome_camada="MDE_OpenTopography_AutoBaixado", demtype="COP30"):
-    """Baixa o MDE via API REST do OpenTopography (exige API key gratuita).
-    Usa urllib puro (thread-safe) em vez de QgsBlockingNetworkRequest, já que
-    esta função roda dentro de uma QThread em segundo plano."""
+
+
     if not OPENTOPOGRAPHY_API_KEY:
         raise Exception("Nenhuma API Key do OpenTopography configurada (variável OPENTOPOGRAPHY_API_KEY no início do script).")
 
@@ -180,9 +155,8 @@ def _baixar_mde_opentopography_arquivo(bbox_wgs84, nome_camada="MDE_OpenTopograp
     return caminho_saida
 
 def _baixar_mde_automatico_arquivo(bbox_wgs84, nome_camada="MDE_Auto"):
-    """Tenta o Copernicus DEM via AWS primeiro (sem API key); se falhar,
-    tenta o OpenTopography (se houver API key configurada). Devolve
-    (caminho_arquivo, nome_sugerido_da_camada)."""
+
+
     erros = []
     try:
         caminho = _baixar_mde_copernicus_aws_arquivo(bbox_wgs84, nome_camada=f"{nome_camada}_Copernicus")
@@ -199,8 +173,8 @@ def _baixar_mde_automatico_arquivo(bbox_wgs84, nome_camada="MDE_Auto"):
     raise Exception(" | ".join(erros))
 
 def reprojetar_raster_arquivo(caminho_origem, epsg_destino, nome_saida):
-    """Reprojeta um raster (por caminho de arquivo) para o CRS informado
-    (ex: 'EPSG:31981') usando gdal.Warp. Devolve o caminho do novo arquivo."""
+
+
     from osgeo import gdal
     gdal.UseExceptions()
     caminho_saida = _caminho_temp_unico(nome_saida)
@@ -214,9 +188,8 @@ def reprojetar_raster_arquivo(caminho_origem, epsg_destino, nome_saida):
     return caminho_saida
 
 def baixar_e_preparar_mde_arquivo(bbox_wgs84, epsg_destino=None, nome_camada="MDE_Auto"):
-    """Baixa o MDE da extensão informada e, se epsg_destino for passado,
-    já devolve reprojetado para essa projeção. Roda inteiramente em
-    segundo plano (chamada a partir de TarefaGeoWorker)."""
+
+
     caminho, nome = _baixar_mde_automatico_arquivo(bbox_wgs84, nome_camada=nome_camada)
     if epsg_destino:
         nome_reprojetado = f"{nome}_{epsg_destino.replace(':', '')}"
@@ -224,15 +197,7 @@ def baixar_e_preparar_mde_arquivo(bbox_wgs84, epsg_destino=None, nome_camada="MD
         nome = nome_reprojetado
     return caminho, nome
 
-# ==========================================
-# DOWNLOAD AUTOMÁTICO DE BANDAS DE SATÉLITE (Microsoft Planetary Computer)
-# Catálogo STAC público — sem necessidade de conta/API key. As URLs dos
-# arquivos (COG) ficam num Azure Blob Storage e precisam ser "assinadas"
-# antes de serem lidas via /vsicurl/.
-# ==========================================
-# Sensor usado pelo download automático — não perguntamos ao usuário porque
-# só baixamos dessa fonte por padrão. O seletor de sensor só é mostrado
-# quando a pessoa diz que já tem as bandas (aí sim varia).
+
 SATELITE_PADRAO_DOWNLOAD = "Sentinel-2 (10m/20m)"
 
 STAC_COLECAO_POR_SATELITE = {
@@ -246,9 +211,8 @@ STAC_ASSET_POR_BANDA = {
 }
 
 def _consultar_stac_planetary_computer(bbox_wgs84, colecao, data_inicio, data_fim, nuvem_max=None, limit=4):
-    """Faz uma requisição de busca ao catálogo STAC do Planetary Computer.
-    Se nuvem_max for None, não aplica filtro de nuvem (usado para diagnóstico
-    de 'qual foi a menor nuvem disponível' quando a busca filtrada não acha nada)."""
+
+
     xmin, ymin, xmax, ymax = bbox_wgs84
     corpo = {
         "collections": [colecao],
@@ -275,16 +239,12 @@ def _consultar_stac_planetary_computer(bbox_wgs84, colecao, data_inicio, data_fi
     return resultado.get("features", [])
 
 def buscar_cenas_planetary_computer(bbox_wgs84, colecao, data_inicio, data_fim, nuvem_max, limit=4):
-    """Busca, no catálogo STAC público do Microsoft Planetary Computer, até
-    'limit' cenas que tocam a área/período/limite de nuvem informados. Pega um
-    lote maior de candidatas (ordenadas da com menos nuvem para a com mais) e
-    devolve só a melhor cena de cada célula/tile — pegar as N com menos nuvem
-    "no geral" pode repetir a mesma célula várias vezes e deixar outra célula
-    de fora, resultando num mosaico com buracos (área sem cobertura nenhuma)."""
+
+
     features = _consultar_stac_planetary_computer(bbox_wgs84, colecao, data_inicio, data_fim, nuvem_max=nuvem_max, limit=max(limit * 6, 20))
 
     if not features:
-        # Diagnóstico: sem o filtro de nuvem, qual foi a menor nuvem disponível nesse período/área?
+        
         try:
             features_sem_filtro = _consultar_stac_planetary_computer(bbox_wgs84, colecao, data_inicio, data_fim, nuvem_max=None, limit=1)
         except Exception:
@@ -307,9 +267,7 @@ def buscar_cenas_planetary_computer(bbox_wgs84, colecao, data_inicio, data_fim, 
             "Tente ampliar o período — pode não haver passagem do satélite sobre essa área nesses dias."
         )
 
-    # 'features' já vem ordenada por nuvem crescente — ao percorrer em ordem e
-    # guardar só a 1ª ocorrência de cada célula, ficamos com a cena menos
-    # nublada de CADA célula que toca a área, em vez de repetir a mesma célula.
+
     melhor_por_celula = {}
     for feature in features:
         propriedades = feature.get("properties", {})
@@ -326,8 +284,8 @@ def buscar_cenas_planetary_computer(bbox_wgs84, colecao, data_inicio, data_fim, 
     return list(melhor_por_celula.values())[:limit]
 
 def assinar_url_planetary_computer(url):
-    """Assina uma URL de asset do Planetary Computer — necessário para poder
-    ler o COG hospedado no Azure Blob Storage via /vsicurl/."""
+
+
     url_assinatura = "https://planetarycomputer.microsoft.com/api/sas/v1/sign?href=" + urllib.parse.quote(url, safe="")
     try:
         with urllib.request.urlopen(url_assinatura, timeout=30) as resposta:
@@ -337,11 +295,8 @@ def assinar_url_planetary_computer(url):
     return resultado["href"]
 
 def listar_datas_disponiveis(bbox_wgs84, satelite, data_inicio, data_fim, nuvem_max, limit_bruto=50):
-    """Busca cenas no período/área/nuvem informados e agrupa por DATA de
-    captura, para o usuário escolher a data específica em vez do sistema
-    decidir sozinho qual imagem baixar. Devolve uma lista de dicts
-    {"data": "AAAA-MM-DD", "n_cenas": N, "nuvem_media": X, "features": [...]},
-    ordenada da com menos nuvem (média) para a com mais."""
+
+
     colecao = STAC_COLECAO_POR_SATELITE.get(satelite)
     if not colecao:
         raise Exception(f"Satélite não suportado: {satelite}")
@@ -385,12 +340,8 @@ def listar_datas_disponiveis(bbox_wgs84, satelite, data_inicio, data_fim, nuvem_
     return resultado
 
 def _baixar_bandas_de_features(bbox_wgs84, satelite, chaves_bandas, features):
-    """Baixa/recorta (via /vsicurl/ + gdal.Translate) as bandas indicadas em
-    chaves_bandas a partir de uma lista de cenas JÁ ESCOLHIDA (uma data
-    específica, ou o resultado de buscar_cenas_planetary_computer). Se
-    houver mais de uma cena, monta um mosaico (gdal.BuildVRT) por banda
-    antes de recortar. Devolve (dict {chave: caminho_arquivo},
-    id_composto_das_cenas, nuvem_media)."""
+
+
     from osgeo import gdal
     gdal.UseExceptions()
 
@@ -400,8 +351,7 @@ def _baixar_bandas_de_features(bbox_wgs84, satelite, chaves_bandas, features):
     if not features:
         raise Exception("Nenhuma cena informada para baixar.")
 
-    # No gdal.BuildVRT, a última fonte da lista "pinta por cima" nas sobreposições —
-    # então colocamos a cena com MENOS nuvem por último (lista em ordem decrescente de nuvem).
+
     features_para_mosaico = list(reversed(features))
 
     xmin, ymin, xmax, ymax = bbox_wgs84
@@ -421,9 +371,8 @@ def _baixar_bandas_de_features(bbox_wgs84, satelite, chaves_bandas, features):
             try:
                 href_assinado = assinar_url_planetary_computer(assets_disponiveis[asset_key]["href"])
                 fonte_candidata = f"/vsicurl/{href_assinado}"
-                # Testa se o GDAL realmente abre a fonte antes de incluí-la no mosaico —
-                # evita que uma única cena com token/URL ruim derrube a banda inteira
-                # com um erro genérico do GDAL ("unknown error occurred").
+
+
                 ds_teste = gdal.Open(fonte_candidata)
                 if ds_teste is None:
                     urls_descartadas += 1
@@ -441,8 +390,8 @@ def _baixar_bandas_de_features(bbox_wgs84, satelite, chaves_bandas, features):
         caminho_saida = _caminho_temp_unico(f"{chave}_mosaico")
         ds = None
         ultimo_erro = None
-        # Falhas de rede em /vsicurl/ costumam ser pontuais — tenta até 3 vezes
-        # antes de desistir, em vez de derrubar o download inteiro na primeira soluço.
+        
+        
         for tentativa in range(3):
             caminho_vrt = None
             vrt_ds = None
@@ -467,12 +416,8 @@ def _baixar_bandas_de_features(bbox_wgs84, satelite, chaves_bandas, features):
                 if tentativa < 2:
                     time.sleep(1.5)
             finally:
-                # Solta a referência ao dataset do VRT antes de tentar apagar o
-                # arquivo /vsimem/. O Unlink em si é só limpeza de um arquivo
-                # virtual em memória (não é disco real) e às vezes falha de forma
-                # intermitente no GDAL ("unknown error occurred") mesmo sem
-                # referências pendentes — por isso NUNCA deixamos essa falha
-                # mascarar um gdal.Translate que já tinha dado certo.
+
+
                 vrt_ds = None
                 if caminho_vrt:
                     try:
@@ -498,10 +443,8 @@ def _baixar_bandas_de_features(bbox_wgs84, satelite, chaves_bandas, features):
     return resultado, id_composto, nuvem_media
 
 def baixar_bandas_satelite_arquivo(bbox_wgs84, satelite, chaves_bandas, data_inicio, data_fim, nuvem_max, max_cenas=6):
-    """Modo automático (sem escolha manual de data): busca e já baixa a
-    melhor cena de cada célula sozinho. Mantido para reuso — a tela de
-    download hoje usa listar_datas_disponiveis() + _baixar_bandas_de_features()
-    para deixar a pessoa escolher a data."""
+
+
     colecao = STAC_COLECAO_POR_SATELITE.get(satelite)
     if not colecao:
         raise Exception(f"Satélite não suportado para download automático: {satelite}")
@@ -509,9 +452,8 @@ def baixar_bandas_satelite_arquivo(bbox_wgs84, satelite, chaves_bandas, data_ini
     return _baixar_bandas_de_features(bbox_wgs84, satelite, chaves_bandas, features)
 
 class TarefaGeoWorker(QThread):
-    """QThread genérica: executa 'funcao(*args, **kwargs)' em segundo plano
-    e emite o resultado (ou o erro) de volta para a thread principal via
-    sinal, mantendo a interface do QGIS responsiva durante downloads/GDAL."""
+
+
     concluido = pyqtSignal(object)
     falhou = pyqtSignal(str)
 
@@ -529,10 +471,8 @@ class TarefaGeoWorker(QThread):
             self.falhou.emit(str(e))
 
 def formatar_detalhes_mde(layer):
-    """Monta um resumo em HTML, com fins didáticos, com resolução (convertida
-    p/ metros quando o MDE está em CRS geográfico), faixa de elevação,
-    dimensões e extensão do MDE — cada característica com uma explicação
-    curta do que ela significa na prática."""
+
+
     provider = layer.dataProvider()
     stats = provider.bandStatistics(1, QgsRasterBandStats.Min | QgsRasterBandStats.Max)
     largura, altura = layer.rasterUnitsPerPixelX(), layer.rasterUnitsPerPixelY()
@@ -565,7 +505,7 @@ def formatar_detalhes_mde(layer):
     )
 
 def criar_painel_educativo_mde():
-    """Painel fixo, didático, explicando o que é um MDE — usado no Passo 1."""
+
     painel = QWidget()
     painel.setStyleSheet("background-color: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 6px; padding: 10px; margin-top: 10px;")
     lay = QVBoxLayout(painel)
@@ -587,9 +527,8 @@ def criar_painel_educativo_mde():
     return painel
 
 def criar_painel_detalhes_mde(texto_inicial="Selecione ou baixe um MDE para ver as características."):
-    """Painel recolhível ('Ver mais ▾') com as características técnicas do
-    MDE — o texto é atualizado via 'painel.lbl_conteudo.setText(...)' quando
-    um MDE é escolhido/baixado. Começa fechado para não ocupar espaço."""
+
+
     painel = QWidget()
     painel.setStyleSheet("background-color: #EBF4FA; border: 1px solid #BEE3F8; border-radius: 6px; padding: 4px 12px; margin-top: 10px;")
     lay = QVBoxLayout(painel)
@@ -627,9 +566,7 @@ ESTILO_GROUPBOX = f"""
 ESTILO_COMBO = "QComboBox { border: 1px solid #CBD5E0; border-radius: 4px; padding: 6px 10px; background-color: white; font-size: 12px; color: #2D3748; } QComboBox:hover { border: 1px solid #1E507E; }"
 ESTILO_INPUT = "QLineEdit { border: 1px solid #CBD5E0; border-radius: 4px; padding: 6px 10px; background-color: white; font-size: 12px; color: #2D3748; } QLineEdit:hover { border: 1px solid #1E507E; }"
 
-# ==========================================
-# MÓDULOS DE AÇÃO (Telas de Configuração)
-# ==========================================
+
 class RascunhoDialog(QDialog):
     def __init__(self, parent=None):
         super(RascunhoDialog, self).__init__(parent)
@@ -800,13 +737,10 @@ class AnaliseMultiespectralDialog(QDialog):
         self.stack.addWidget(self.pagina_carregando)
         self.stack.setCurrentWidget(self.pagina_indice)
 
-        # Só agora todas as páginas existem (lbl_banda_1 etc. vivem na pagina_config,
-        # criada por último) — é seguro chamar atualizar_interface() pela 1ª vez.
+
         self.atualizar_lista_indices()
 
-    # ------------------------------------------------------------------
-    # PÁGINA 1: o que analisar (sensor + categoria + índice)
-    # ------------------------------------------------------------------
+
     def _criar_pagina_indice(self):
         pagina = QWidget()
         pagina.setStyleSheet("background-color: #F8FAFC; font-family: 'Segoe UI', Arial;")
@@ -824,11 +758,7 @@ class AnaliseMultiespectralDialog(QDialog):
         lbl_titulo.setStyleSheet(f"font-size: 15px; font-weight: bold; color: {COR_PRIMARIA}; margin-bottom: 8px;")
         layout.addWidget(lbl_titulo)
 
-        # O sensor não é perguntado aqui: quem baixa automaticamente com a
-        # gente sempre recebe Sentinel-2 (fixado em SATELITE_PADRAO_DOWNLOAD);
-        # o seletor de sensor só aparece depois, na tela de mapeamento, e só
-        # para quem responder "já tenho essas bandas" (aí sim precisamos saber
-        # de qual sensor são os rasters que a pessoa já carregou).
+
         self.combo_sat = QComboBox()
         self.combo_sat.addItems(["Sentinel-2 (10m/20m)", "Landsat 8/9 (30m)"])
         self.combo_sat.setCurrentText(SATELITE_PADRAO_DOWNLOAD)
@@ -900,9 +830,7 @@ class AnaliseMultiespectralDialog(QDialog):
         else:
             self._ir_para_bandas_pergunta()
 
-    # ------------------------------------------------------------------
-    # PÁGINA 2: pergunta — já tem as bandas necessárias para este índice?
-    # ------------------------------------------------------------------
+
     def _criar_pagina_bandas_pergunta(self):
         pagina = QWidget()
         pagina.setStyleSheet("background-color: #F8FAFC; font-family: 'Segoe UI', Arial;")
@@ -955,18 +883,15 @@ class AnaliseMultiespectralDialog(QDialog):
         self.stack.setCurrentWidget(self.pagina_bandas_pergunta)
 
     def _ir_para_download_forcando_sentinel(self):
-        # Só baixamos automaticamente do Sentinel-2 — fixa o sensor aqui pra
-        # garantir que os rótulos de banda na tela de mapeamento batam com o
-        # que realmente foi baixado, sem precisar perguntar isso ao usuário.
+
+
         self.combo_sat.blockSignals(True)
         self.combo_sat.setCurrentText(SATELITE_PADRAO_DOWNLOAD)
         self.combo_sat.blockSignals(False)
         self.atualizar_interface()
         self.stack.setCurrentWidget(self.pagina_download)
 
-    # ------------------------------------------------------------------
-    # PÁGINA 3: baixar só as bandas deste índice (compacta)
-    # ------------------------------------------------------------------
+
     def _criar_pagina_download(self):
         pagina = QWidget()
         pagina.setStyleSheet("background-color: #F8FAFC; font-family: 'Segoe UI', Arial;")
@@ -1187,9 +1112,7 @@ class AnaliseMultiespectralDialog(QDialog):
         self._parar_carregamento()
         self._reportar_erro(f"Falha ao baixar as bandas automaticamente: {mensagem}")
 
-    # ------------------------------------------------------------------
-    # PÁGINA 4: mapeamento final de bandas + executar
-    # ------------------------------------------------------------------
+
     def _criar_pagina_config(self):
         pagina = QWidget()
         pagina.setStyleSheet("background-color: #F8FAFC; font-family: 'Segoe UI', Arial;")
@@ -1202,10 +1125,7 @@ class AnaliseMultiespectralDialog(QDialog):
         self.lbl_resumo_indice.setStyleSheet("color: #718096; font-size: 11px; margin-bottom: 4px;")
         layout.addWidget(self.lbl_resumo_indice)
 
-        # Só aparece quando a pessoa respondeu "já tenho essas bandas" — é
-        # quando realmente precisamos saber de qual sensor são os rasters
-        # que ela já carregou. No caminho de download automático fica
-        # escondido (o sensor já está fixo em Sentinel-2, sem perguntar).
+
         self.group_sensor = QGroupBox("De qual sensor são essas bandas?")
         self.group_sensor.setStyleSheet(ESTILO_GROUPBOX)
         layout_sensor = QVBoxLayout(self.group_sensor)
@@ -1501,7 +1421,7 @@ class AnaliseMultiespectralDialog(QDialog):
             if b3_nome: self.lbl_banda_3.setText(f"<span style='color: {cor3};'>Matriz <b>{b3_nome}</b> (Requer: {dica_3}):</span>")
             if b4_nome: self.lbl_banda_4.setText(f"<span style='color: {cor4};'>Matriz <b>{b4_nome}</b> (Requer: {dica_4}):</span>")
 
-        # Pré-seleciona automaticamente bandas já baixadas (nome "CHAVE_<cena>")
+        
         combos_visiveis = [self.combo_banda_1, self.combo_banda_2, self.combo_banda_3, self.combo_banda_4]
         for i, chave in enumerate(self.chaves_bandas_necessarias):
             if i >= len(combos_visiveis) or not combos_visiveis[i].isVisible():
@@ -1511,7 +1431,7 @@ class AnaliseMultiespectralDialog(QDialog):
             if candidato and candidato in [combo.itemText(j) for j in range(combo.count())]:
                 combo.setCurrentText(candidato)
 
-        # ATUALIZAÇÃO DO PAINEL DE INFORMAÇÕES
+        
         dicionario_dicas = {
             "NDVI": ("Índice de Vegetação da Diferença Normalizada", "Mede a saúde e densidade da vegetação verde. Valores altos indicam mata densa e saudável, enquanto valores próximos a zero ou negativos indicam solo exposto, água ou nuvens."),
             "EVI": ("Índice de Vegetação Melhorado", "Similar ao NDVI, mas corrige distorções atmosféricas e a influência do solo. É excelente para áreas de floresta muito densa, onde o NDVI costuma saturar."),
@@ -1614,9 +1534,7 @@ class AnaliseMultiespectralDialog(QDialog):
         b4 = self.combo_banda_4.currentText() if self.combo_banda_4.isVisible() else None
         return cat, analise, b1, b2, b3, b4
 
-# ==========================================
-# MÓDULOS DE HIDROLOGIA (GRASS)
-# ==========================================
+
 class PointTool(QgsMapToolEmitPoint):
     def __init__(self, canvas, callback):
         super().__init__(canvas)
@@ -1628,8 +1546,8 @@ class PointTool(QgsMapToolEmitPoint):
         self.callback(point)
 
 def _tarefa_delimitar_bacia(task, dir_layer, coords_final):
-    """Roda no worker thread de uma QgsTask: delimita a bacia (r.water.outlet)
-    e converte o resultado raster em polígono (gdal:polygonize)."""
+
+
     alg_outlet = "grass7:r.water.outlet" if QgsApplication.processingRegistry().algorithmById("grass7:r.water.outlet") else "grass:r.water.outlet"
     params_outlet = {
         'input': dir_layer,
@@ -1852,10 +1770,8 @@ class ExtratorExutorioDialog(QDialog):
         self.show()
 
     def _transformar_para_crs(self, ponto, crs_destino):
-        """O ponto capturado pelo clique no mapa vem no CRS do canvas/projeto.
-        Como o MDE (e, portanto, o raster de rios) pode estar em outro CRS
-        (ex: SIRGAS 2000 UTM), é preciso reprojetar antes de comparar com a
-        grade do raster — senão a busca por célula de rio nunca bate com nada."""
+
+
         crs_canvas = self.canvas.mapSettings().destinationCrs()
         if crs_canvas == crs_destino:
             return ponto
@@ -1863,9 +1779,8 @@ class ExtratorExutorioDialog(QDialog):
         return transformador.transform(ponto)
 
     def _snap_para_stream(self, ponto, stream_layer, raio_celulas=12):
-        """Procura, num raio de N células ao redor do ponto clicado, a célula
-        de rio (valor não-nulo no raster de drenagem) mais próxima e devolve
-        suas coordenadas (x, y). Devolve None se nada for encontrado no raio."""
+
+
         provider = stream_layer.dataProvider()
         px_x = stream_layer.rasterUnitsPerPixelX()
         px_y = stream_layer.rasterUnitsPerPixelY()
@@ -2005,8 +1920,8 @@ class SelecaoMDEDialog(QDialog):
         self._worker = None
         self._mde_baixado = None
         self._pagina_anterior = None
-        # Exclui rasters gerados pela própria ferramenta (direção de fluxo, rios) —
-        # nunca são um MDE válido de entrada, só confundiriam a seleção.
+        
+        
         self.rasters = {
             layer.name(): layer for layer in QgsProject.instance().mapLayers().values()
             if isinstance(layer, QgsRasterLayer)
@@ -2037,9 +1952,7 @@ class SelecaoMDEDialog(QDialog):
 
         self.stack.setCurrentWidget(self.pagina_pergunta)
 
-    # ------------------------------------------------------------------
-    # PÁGINA 1: pergunta inicial
-    # ------------------------------------------------------------------
+
     def _criar_pagina_pergunta(self):
         pagina = QWidget()
         pagina.setStyleSheet("background-color: #F8FAFC; font-family: 'Segoe UI', Arial;")
@@ -2104,9 +2017,7 @@ class SelecaoMDEDialog(QDialog):
             return epsg_sirgas_utm_por_longitude(centro_lon if centro_lon is not None else -55.0)
         return None
 
-    # ------------------------------------------------------------------
-    # PÁGINA 2: já tenho um MDE (seleção)
-    # ------------------------------------------------------------------
+
     def _criar_pagina_selecao(self):
         pagina = QWidget()
         pagina.setStyleSheet("background-color: #F8FAFC; font-family: 'Segoe UI', Arial;")
@@ -2221,9 +2132,7 @@ class SelecaoMDEDialog(QDialog):
         self._parar_carregamento()
         self._reportar_erro(f"Falha ao reprojetar o MDE: {mensagem}")
 
-    # ------------------------------------------------------------------
-    # PÁGINA 3: baixar automaticamente (compacta)
-    # ------------------------------------------------------------------
+
     def _criar_pagina_download(self):
         pagina = QWidget()
         pagina.setStyleSheet("background-color: #F8FAFC; font-family: 'Segoe UI', Arial;")
@@ -2325,9 +2234,7 @@ class SelecaoMDEDialog(QDialog):
             return
         self._avancar_com_camada(self._mde_baixado)
 
-    # ------------------------------------------------------------------
-    # PÁGINA 4: carregando (tela cheia, branca, só o satélite)
-    # ------------------------------------------------------------------
+
     def _criar_pagina_carregando(self):
         pagina = QWidget()
         pagina.setStyleSheet("background-color: white;")
@@ -2373,7 +2280,7 @@ class SelecaoMDEDialog(QDialog):
         self._spinner_index = (self._spinner_index + 1) % len(self._spinner_frames)
         self.lbl_spinner_grande.setText(self._spinner_frames[self._spinner_index])
 
-    # ------------------------------------------------------------------
+    
     def _avancar_com_camada(self, mde_layer):
         self.hide()
         parent_chat = self.parent()
@@ -2397,9 +2304,8 @@ class SelecaoMDEDialog(QDialog):
             QMessageBox.information(self, "H-Geo", mensagem)
 
 def _tarefa_watershed(task, mde_layer, thr):
-    """Roda no worker thread de uma QgsTask (mecanismo oficial do QGIS para
-    algoritmos de Processing em segundo plano — mais seguro que uma QThread
-    crua para chamadas que envolvem o GRASS via 'processing.run')."""
+
+
     alg = "grass7:r.watershed" if QgsApplication.processingRegistry().algorithmById("grass7:r.watershed") else "grass:r.watershed"
     params = {
         'elevation': mde_layer,
@@ -2623,11 +2529,7 @@ class GeradorDrenagemDialog(QDialog):
         self.parent().janela_passo3 = ExtratorExutorioDialog(self.parent())
         self.parent().janela_passo3.show()
 
-# ==========================================
-# MÓDULO PRINCIPAL DO COPILOTO (A MÁGICA DA UI)
-# ==========================================
-# === H-GEO: RELATORIO COMPARATIVO v1 ===
-# Self-contained addition: no companion module or credential file is required.
+
 import csv as _hgr_csv
 import hashlib as _hgr_hashlib
 import json as _hgr_json
@@ -2699,7 +2601,7 @@ def _hgr_check(cancel):
 
 
 class _HgrQgisLogStream:
-    """Output for orphaned console handlers in a GUI-only QGIS process."""
+
     encoding = 'utf-8'
     closed = False
 
@@ -2707,7 +2609,7 @@ class _HgrQgisLogStream:
         from qgis.core import QgsMessageLog, Qgis
         text = str(message).strip()
         if text:
-            # Network debug records can contain temporary asset credentials.
+            
             text = _hgr_re.sub(r'([?&](?:sig|token|access_token)=)[^&\s\"\']+',
                                r'\1[removido]', text, flags=_hgr_re.IGNORECASE)
             QgsMessageLog.logMessage(text, 'H-GEO / bibliotecas', Qgis.Info)
@@ -2718,7 +2620,7 @@ class _HgrQgisLogStream:
 
 
 def _hgr_ensure_gui_logging():
-    """Repair only broken console outputs, leaving levels and file logs intact."""
+
     import logging
     loggers = [logging.getLogger()]
     loggers.extend(value for value in list(logging.Logger.manager.loggerDict.values())
@@ -2730,7 +2632,7 @@ def _hgr_ensure_gui_logging():
             if id(handler) in seen:
                 continue
             seen.add(id(handler))
-            # FileHandler.stream=None is legitimate for delayed file opening.
+            
             if not isinstance(handler, logging.StreamHandler) or isinstance(handler, logging.FileHandler):
                 continue
             handler.acquire()
@@ -2744,7 +2646,6 @@ def _hgr_ensure_gui_logging():
     return repaired
 
 
-# Re-executing the script also repairs handlers left over from the prior session.
 _hgr_ensure_gui_logging()
 
 
@@ -2771,7 +2672,7 @@ def _hgr_http(url, cancel=None, payload=None):
                 _hgr_time.sleep(.15)
             continue
         if response.status_code >= 400:
-            # Never include signed URLs or access tokens in error messages.
+            
             raise RuntimeError('Serviço de imagens respondeu HTTP %s.' % response.status_code)
         return response
     raise RuntimeError('Serviço temporariamente indisponível.')
@@ -2797,7 +2698,7 @@ def _hgr_catalog(config, cancel=None, progress=lambda s: None):
         data = _hgr_http('https://planetarycomputer.microsoft.com/api/stac/v1/search',
                          cancel, body).json()
         features = data.get('features', [])
-        # Follow STAC pagination, retaining a bounded local query.
+        
         for _ in range(4):
             nxt = next((x for x in data.get('links', []) if x.get('rel') == 'next'), None)
             if not nxt:
@@ -2821,7 +2722,7 @@ def _hgr_catalog(config, cancel=None, progress=lambda s: None):
             tile = props.get('s2:mgrs_tile') or _hgr_re.search(r'_T([A-Z0-9]+)_', feature['id'])
             tile = tile.group(1) if hasattr(tile, 'group') else tile
             tile = tile or feature['id']
-            # Prefer the least cloudy observation per tile on a given date.
+            
             by_tile = grouped.setdefault(capture, {})
             old = by_tile.get(tile)
             cloud = props.get('eo:cloud_cover', 100)
@@ -2912,7 +2813,7 @@ def _hgr_is_local(href):
 
 def _hgr_signed_url(href, tokens, cancel):
     from urllib.parse import urlparse
-    if _hgr_is_local(href):  # Offline inputs are useful for reproducible tests.
+    if _hgr_is_local(href):  
         return href
     parsed = urlparse(href)
     if parsed.scheme != 'https' or not (parsed.hostname or '').endswith('.blob.core.windows.net'):
@@ -2972,7 +2873,7 @@ def _hgr_prepare_date(group, config, grid, folder, tokens, cancel, progress, loc
                 ds = gdal.Translate('', remote, format='MEM',
                     projWin=[box[0], box[3], box[2], box[1]], projWinSRS='EPSG:4326')
             except Exception:
-                # GDAL exceptions can embed signed URLs. Keep the GUI/log message clean.
+                
                 raise RuntimeError('Não foi possível ler %s em %s. Tente outra cena.' % (key, group['date']))
             finally:
                 gdal.PopErrorHandler()
@@ -3216,7 +3117,7 @@ def _hgr_run_report(config, progress=lambda s: None, cancel=None, local_assets=N
             raise ValueError('Área menor que a grade escolhida. Reduza o tamanho do pixel.')
         config['area_pixels'] = int(area_mask.sum())
         tokens = {}; arrays = []; provenance = []
-        # Per-thread HTTP configuration avoids changing the user's GDAL settings.
+        
         previous = {}
         for key,value in [('GDAL_HTTP_TIMEOUT','40'),('GDAL_HTTP_CONNECTTIMEOUT','15'),
                           ('GDAL_DISABLE_READDIR_ON_OPEN','EMPTY_DIR')]:
@@ -3237,7 +3138,7 @@ def _hgr_run_report(config, progress=lambda s: None, cancel=None, local_assets=N
             pair = [_hgr_compute_index(name,data,config['savi_l']) for data in arrays]
             computed[name] = pair
             common &= np.isfinite(pair[0]) & np.isfinite(pair[1])
-        # Also require valid visible bands used by the overview.
+        
         for data in arrays:
             for key in ('RED','GREEN','BLUE'):
                 common &= np.isfinite(data[key])
@@ -3275,7 +3176,7 @@ def _hgr_run_report(config, progress=lambda s: None, cancel=None, local_assets=N
 
 def _hgr_scene_preview(config, cancel=None, progress=lambda s: None,
                        local_assets=None, cache_root=None):
-    """RGB + SCL preview of the AOI, with stable contrast and a bounded grid."""
+
     import numpy as np
     from osgeo import gdal, ogr, osr
     from PIL import Image, ImageDraw
@@ -3307,7 +3208,7 @@ def _hgr_scene_preview(config, cancel=None, progress=lambda s: None,
         previous[setting]=gdal.GetThreadLocalConfigOption(setting)
         gdal.SetThreadLocalConfigOption(setting,value)
     try:
-        # RGB alone is enough to choose an image; full report checks all index bands.
+        
         data,provenance=_hgr_prepare_date(group,dict(config,indices=[]),grid,folder,{},
                                           cancel,progress,local_assets)
     finally:
@@ -3359,7 +3260,7 @@ def _hgr_scene_preview(config, cancel=None, progress=lambda s: None,
         'bounds':grid['bounds'],'epsg':grid['epsg'],'pixels':int(inside.sum()),
         'scene_cloud_pct':group['cloud'],'scene_ids':[x['id'] for x in provenance],
         'width':grid['width'],'height':grid['height'],'cached':False}
-    # Convert NumPy scalar metadata before serializing.
+    
     for field in ('valid_pct','cloud_shadow_pct','nodata_pct'):result[field]=float(result[field])
     _hgr_check(cancel)
     staged=cache/(key+'.'+_hgr_uuid.uuid4().hex+'.tmp')
@@ -3720,7 +3621,7 @@ class HGeoRelatorioDialog(QDialog):
         self.worker.progresso.connect(self._progress)
         self.worker.pronto.connect(self._catalog_done if operation=='catalog' else self._report_done)
         self.worker.falhou.connect(self._failed)
-        # Re-enable the dialog only after QThread has actually stopped.
+        
         self.worker.finished.connect(lambda:self._busy(False))
         self.worker.start()
 
@@ -3804,7 +3705,7 @@ def abrir_relatorio_comparativo_hgeo(parent=None):
         try:
             if isinstance(current,HGeoRelatorioDialog):
                 current.show();current.raise_();current.activateWindow();return current
-            # Re-running an updated script must not reopen an obsolete dialog.
+            
             if not current.close():return current
             current.deleteLater()
         except RuntimeError:
@@ -3812,13 +3713,6 @@ def abrir_relatorio_comparativo_hgeo(parent=None):
     _hgr_report_dialog = HGeoRelatorioDialog(parent)
     _hgr_report_dialog.show()
     return _hgr_report_dialog
-# === FIM H-GEO: RELATORIO COMPARATIVO ===
-
-
-
-
-
-
 
 
 class ChatWindow(QDialog):
@@ -3848,7 +3742,7 @@ class ChatWindow(QDialog):
         self.layout_principal = QVBoxLayout(self.container)
         self.layout_principal.setContentsMargins(25, 20, 25, 25)
         
-        # --- BARRA SUPERIOR CUSTOMIZADA ---
+        
         self.top_bar_layout = QHBoxLayout()
         
         titulo_texto = "Terminal Analítico" if _modo_atual == "analista" else "Copiloto Básico"
@@ -3878,7 +3772,7 @@ class ChatWindow(QDialog):
         linha.setStyleSheet("background-color: #E2E8F0; margin: 10px 0;")
         self.layout_principal.addWidget(linha)
         
-        # --- SELETOR OPERACIONAL (Combobox) ---
+        
         self.lbl_acao = QLabel("<b>Ações e Guias Disponíveis:</b>")
         self.lbl_acao.setStyleSheet("color: #2D3748; font-size: 13px; margin-top: 5px;")
         self.layout_principal.addWidget(self.lbl_acao)
@@ -3912,7 +3806,7 @@ class ChatWindow(QDialog):
         self.combo_atalhos.currentIndexChanged.connect(self.usar_atalho)
         self.layout_principal.addWidget(self.combo_atalhos)
         
-        # --- PAINEL ANALISTA (Botões/Dashboard) ---
+        
         self.container_analista = QWidget()
         layout_analista = QVBoxLayout(self.container_analista)
         layout_analista.setContentsMargins(0, 10, 0, 0)
@@ -3944,7 +3838,7 @@ class ChatWindow(QDialog):
 
         self.layout_principal.addWidget(self.container_analista)
         
-        # --- PAINEL GUIADO (Apenas para Operacional) ---
+        
         self.panel_guiado = QWidget()
         self.panel_guiado.setStyleSheet(f"background-color: white; border: 1px solid #E2E8F0; border-radius: 8px; margin-top: 15px;")
         self.layout_guiado = QHBoxLayout(self.panel_guiado)
@@ -3964,7 +3858,7 @@ class ChatWindow(QDialog):
         self.panel_guiado.hide() 
         self.layout_principal.addWidget(self.panel_guiado)
         
-        # --- CONSOLE DE LOGS ---
+        
         self.lbl_log = QLabel("<b>Console / Histórico:</b>")
         self.lbl_log.setStyleSheet("color: #718096; font-size: 13px; margin-top: 15px;")
         self.layout_principal.addWidget(self.lbl_log)
@@ -3974,7 +3868,7 @@ class ChatWindow(QDialog):
         self.chat_history.setStyleSheet("background-color: white; font-size: 13px; padding: 15px; border: 1px solid #E2E8F0; border-radius: 8px; color: #2D3748;")
         self.layout_principal.addWidget(self.chat_history)
         
-        # --- LÓGICA DE VISUALIZAÇÃO POR PERFIL ---
+        
         if _modo_atual == "analista":
             self.lbl_acao.hide()
             self.combo_atalhos.hide()
@@ -4283,12 +4177,8 @@ class ChatWindow(QDialog):
                         else:
                             formula = ""
                             sigla = analise.split(" ")[0]
-                            
-                            # NO_DATA=0: as bandas de satélite (Sentinel-2/Landsat) usam 0 como
-                            # valor de "sem cobertura" nas bordas/fora da cena. Em todas essas
-                            # fórmulas, A=B=C=0 sempre resulta em 0 — então marcar 0 como NoData
-                            # na saída evita que a área sem imagem apareça pintada (ex: como se
-                            # fosse "Água/Área Urbana" no NDVI) em vez de transparente.
+
+
                             if "NDVI" in analise:
                                 formula = '(1.0 * A - 1.0 * B) / (1.0 * A + 1.0 * B + 0.000001)'
                                 params = {'INPUT_A': layer1, 'BAND_A': 1, 'INPUT_B': layer2, 'BAND_B': 1, 'FORMULA': formula, 'NO_DATA': 0, 'RTYPE': 5, 'OUTPUT': 'TEMPORARY_OUTPUT'}
@@ -4552,7 +4442,7 @@ def spawn_chat_button(abrir_chat_agora=False):
                 _assistente_chat.chat_window.raise_()
                 _assistente_chat.chat_window.activateWindow()
             return
-        # Keep child tools/workers alive when changing mode.
+        
         _assistente_chat.chat_window.hide()
         _assistente_chat.hide()
         _hgeo_previous_chats.append(_assistente_chat)
@@ -4595,7 +4485,7 @@ class WelcomeDialog(QDialog):
         self.split_layout.setContentsMargins(0, 0, 0, 0)
         self.split_layout.setSpacing(0)
 
-        # === LADO ESQUERDO (Branding / Logo) ===
+        
         self.left_panel = QWidget()
         self.left_panel.setFixedWidth(240)
         self.left_panel.setStyleSheet(f"""
@@ -4629,7 +4519,7 @@ class WelcomeDialog(QDialog):
         
         self.split_layout.addWidget(self.left_panel)
 
-        # === LADO DIREITO (Ações) ===
+        
         self.right_panel = QWidget()
         self.right_panel.setStyleSheet("background-color: transparent;")
         self.right_layout = QVBoxLayout(self.right_panel)
